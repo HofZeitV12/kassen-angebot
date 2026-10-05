@@ -130,6 +130,35 @@
   .costline{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding-top:6px;border-top:1px dashed var(--line)}
   .costline b{font-size:1rem}
 
+  /* Kategorien + freie Positionen */
+  .cat{margin:4px 0 10px}
+  .cat:first-child{margin-top:0}
+  .cat > h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--brand);
+    border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:2px}
+  .pos {position:relative}
+  .poshead{gap:6px}
+  .poslabel{flex:1 1 auto;background:#fff;border:1px solid transparent;border-radius:8px;padding:6px 8px;min-height:38px;font-weight:700;font-size:.9rem}
+  .poslabel:hover{border-color:var(--line)}
+  .poslabel:focus{border-color:var(--brand-2);outline:2px solid var(--brand-2)}
+  .poscat{font-size:.72rem;border:1px solid var(--line);border-radius:8px;background:#fff;padding:4px 6px;min-height:34px;color:var(--muted)}
+  .pos-acts{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
+  .pos-acts .iconbtn{width:34px;height:30px;font-size:.85rem}
+  .sides{display:grid;gap:0;grid-template-columns:1fr 1fr}
+  @media(min-width:680px){.sides{grid-template-columns:1fr 1fr}}
+  .sides > .cell{border-top:1px solid var(--line);border-right:1px solid var(--line);padding:10px;display:grid;gap:8px;align-content:start}
+  .sides > .cell:nth-child(2n){border-right:0}
+  .sides .cell.cur{background:#FDF8F6}
+  .sides .cell.own{background:#F5FBF8}
+  .cellhead{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+  .cell.cur .cellhead{color:var(--bad)}
+  .cell.own .cellhead{color:var(--good)}
+  .cellnote{font-size:.72rem;color:var(--muted);margin-top:-2px}
+  .pos .costline{padding-top:7px}
+  @media(max-width:560px){
+    .sides{grid-template-columns:1fr}
+    .sides > .cell{border-right:0}
+  }
+
   /* ---------- Summary ---------- */
   .sumgrid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
   .sumgrid .s{background:#F6F8F6;border:1px solid var(--line);border-radius:var(--radius-s);padding:10px}
@@ -335,8 +364,13 @@
           <h2>Kostenpositionen</h2>
           <button class="btn ghost" style="padding:6px 10px;min-height:0;font-size:.78rem" data-action="reset-positions">Beispiel laden</button>
         </header>
-        <p class="hint">Gebührentyp je Seite wählbar: Prozent, Fixbetrag €/Monat, Cent pro Transaktion oder Prozent + Fixbetrag.</p>
+        <p class="hint">Links die Kosten, die der Kunde <b>heute</b> zahlt, rechts dein Angebot <b>„bei uns“</b>. Jede Position lässt sich umbenennen; der Gebührentyp ist je Seite wählbar: Prozentsatz vom Umsatz, Fixbetrag pro Monat (z. B. Abo 280 € oder 59 €), Cent pro Transaktion oder Prozent + Fixbetrag pro Transaktion.</p>
         <div id="posList"></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn soft" data-action="pos-add">＋ Position hinzufügen</button>
+          <button class="btn ghost" data-action="pos-add-abo">＋ Abo / Monatsbetrag</button>
+          <button class="btn ghost" data-action="pos-add-tx">＋ Transaktionsgebühr</button>
+        </div>
       </div>
 
       <div class="card">
@@ -478,13 +512,23 @@
    ========================================================= */
 'use strict';
 
-const KEY = 'angebotsStudio.v1';
+const KEY = 'angebotsStudio.v2';
+const CATS = ['Kartenzahlung','Online & Website','Kassensystem','Software & Abo','Sonstiges'];
+function newPosition(label){
+  return {
+    id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    label: label || 'Neue Position',
+    category:'Sonstiges', visible:true,
+    current:{type:'fixed', a:'', b:''},
+    ours:{type:'fixed', a:'', b:''}
+  };
+}
 const DEFAULT_POSITIONS = () => ([
-  { id:'ec',    label:'Terminal für EC-Karten (Transaktionsgebühr)', current:{type:'percent', a:'0,66', b:''},   ours:{type:'percent', a:'0,4', b:''} },
-  { id:'online',label:'Online-Transaktionsgebühren',                 current:{type:'percent_fixed', a:'1,4', b:'0,24'}, ours:{type:'percent', a:'0,4', b:''} },
-  { id:'web',   label:'Abo an Webanbieter (Website/Online-Bestellung)', current:{type:'fixed', a:'280', b:''},  ours:{type:'fixed', a:'340', b:''} },
-  { id:'service',label:'Servicegebühren',                            current:{type:'cent', a:'0,99', b:''},      ours:{type:'fixed', a:'0', b:''} },
-  { id:'kasse', label:'Kassenabo',                                   current:{type:'fixed', a:'50', b:''},       ours:{type:'fixed', a:'45', b:''} }
+  { id:'ec',    label:'EC-Terminal vor Ort (Transaktionsgebühr)', category:'Kartenzahlung', visible:true, current:{type:'percent', a:'0,66', b:''},   ours:{type:'percent', a:'0,4', b:''} },
+  { id:'online',label:'Online-Zahlung Gebühren',                  category:'Online & Website', visible:true, current:{type:'percent_fixed', a:'1,4', b:'0,24'}, ours:{type:'percent', a:'0,4', b:''} },
+  { id:'web',   label:'Abo Bestell-/Website',                     category:'Online & Website', visible:true, current:{type:'fixed', a:'280', b:''},  ours:{type:'fixed', a:'340', b:''} },
+  { id:'service',label:'Servicegebühren',                         category:'Kartenzahlung', visible:true, current:{type:'cent', a:'0,99', b:''},      ours:{type:'fixed', a:'0', b:''} },
+  { id:'kasse', label:'Kassensoftware / Kassenabo',               category:'Kassensystem', visible:true, current:{type:'fixed', a:'59', b:''},       ours:{type:'fixed', a:'45', b:''} }
 ]);
 
 const FEE_TYPES = {
@@ -555,6 +599,10 @@ function ensureShape(c){
   c.oneTime     = Object.assign({hardware:'0',setup:'0',other:'0'}, c.oneTime||{});
   if(!Array.isArray(c.positions) || !c.positions.length) c.positions = DEFAULT_POSITIONS();
   c.positions.forEach(p=>{
+    if(!p.id) p.id = 'p'+Math.random().toString(36).slice(2,8);
+    if(!p.label) p.label = 'Position';
+    if(!p.category) p.category = 'Sonstiges';
+    if(p.visible===undefined) p.visible = true;
     p.current = Object.assign({type:'fixed',a:'',b:''}, p.current||{});
     p.ours    = Object.assign({type:'fixed',a:'',b:''}, p.ours||{});
   });
@@ -578,7 +626,7 @@ function calc(c){
   const rev = parseNum(c.assumptions.revenue);
   const tx  = parseNum(c.assumptions.transactions);
   let cur = 0, own = 0;
-  const rows = c.positions.map(p=>{
+  const rows = c.positions.filter(p=>p.visible!==false).map(p=>{
     const cm = feeMonthly(p.current, rev, tx);
     const om = feeMonthly(p.ours, rev, tx);
     cur += cm; own += om;
@@ -705,9 +753,11 @@ function applyBindings(){
 }
 
 /* ---------------- Render: Vergleichspositionen ---------------- */
-function feeInputs(side, p, s){
+function typeOptions(sel){
+  return Object.entries(FEE_TYPES).map(([k,v])=>`<option value="${k}" ${sel===k?'selected':''}>${v}</option>`).join('');
+}
+function feeInputs(side, p){
   const f = p[side];
-  const types = Object.entries(FEE_TYPES).map(([k,v])=>`<option value="${k}" ${f.type===k?'selected':''}>${v}</option>`).join('');
   let inputs = '';
   if(f.type==='percent'){
     inputs = `<input data-pos="${p.id}" data-side="${side}" data-k="a" inputmode="decimal" class="num" value="${esc(f.a)}" placeholder="Prozent" aria-label="Prozent" />`;
@@ -719,25 +769,58 @@ function feeInputs(side, p, s){
     inputs = `<input data-pos="${p.id}" data-side="${side}" data-k="a" inputmode="decimal" class="num" value="${esc(f.a)}" placeholder="Prozent" aria-label="Prozent" />
               <input data-pos="${p.id}" data-side="${side}" data-k="b" inputmode="decimal" class="num" value="${esc(f.b)}" placeholder="+ € / Transaktion" aria-label="Euro pro Transaktion" />`;
   }
-  const unit = {percent:'%',fixed:'€/Monat',cent:'Cent/Tx',percent_fixed:'% + €/Tx'}[f.type];
-  return `<div class="side ${side==='current'?'cur':'own'}">
-    <div class="sidetag">${side==='current'?'Aktuell':'Bei uns'} <span style="font-weight:500;text-transform:none;letter-spacing:0">· ${esc(unit)}</span></div>
-    <div class="sidebody">
-      <select data-pos="${p.id}" data-side="${side}" data-role="type" aria-label="Gebührentyp ${side==='current'?'aktuell':'bei uns'}">${types}</select>
-      <div class="fees">${inputs}</div>
-      <div class="costline"><span style="color:var(--muted);font-size:.82rem">Kosten / Monat</span><b class="num" id="cost-${side}-${p.id}">–</b></div>
+  const unit = {percent:'% vom Umsatz',fixed:'€ / Monat',cent:'Cent / Transaktion',percent_fixed:'% + € / Transaktion'}[f.type];
+  return `<div class="cell ${side==='current'?'cur':'own'}">
+    <div class="cellhead">${side==='current'?'Heute zahlt der Kunde':'Bei uns zahlt der Kunde'}</div>
+    <select data-pos="${p.id}" data-side="${side}" data-role="type" aria-label="Gebührentyp ${side==='current'?'aktuell':'bei uns'}">${typeOptions(f.type)}</select>
+    <div class="cellnote">${esc(unit)}</div>
+    <div class="fees">${inputs}</div>
+    <div class="costline"><span class="cellnote" style="margin:0">Kosten / Monat</span><b class="num" id="cost-${side}-${p.id}">–</b></div>
+  </div>`;
+}
+function posCard(p, i){
+  return `<div class="pos" data-posid="${p.id}">
+    <div class="poshead">
+      <div class="nidx">${i+1}</div>
+      <input class="poslabel" data-edit="label" data-posid="${p.id}" value="${esc(p.label)}" aria-label="Name der Position" />
+      <select class="poscat" data-edit="category" data-posid="${p.id}" aria-label="Kategorie">${CATS.map(c=>`<option ${p.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+      <div class="pos-acts">
+        <button class="iconbtn" title="Position ein-/ausblenden" data-action="pos-eye" data-id="${p.id}">${p.visible===false?'🚫':'👁'}</button>
+        <button class="iconbtn" title="Position löschen" data-action="pos-del" data-id="${p.id}">🗑</button>
+      </div>
+    </div>
+    <div class="sides">
+      ${feeInputs('current',p)}
+      ${feeInputs('ours',p)}
     </div>
   </div>`;
 }
 function renderPositions(){
   const c = active(); if(!c) return;
   ensureShape(c);
-  document.getElementById('posList').innerHTML = c.positions.map((p,i)=>`
-    <div class="pos">
-      <div class="poshead"><div class="nidx">${i+1}</div><b>${esc(p.label)}</b></div>
-      ${feeInputs('current',p)}
-      ${feeInputs('ours',p)}
-    </div>`).join('');
+  const visible = c.positions.filter(p=>p.visible!==false);
+  const hidden  = c.positions.filter(p=>p.visible===false);
+  let html = '';
+  CATS.forEach(cat=>{
+    const inCat = visible.filter(p=>p.category===cat);
+    if(!inCat.length) return;
+    html += `<div class="cat"><h3>${esc(cat)}</h3>` + inCat.map(p=>posCard(p, c.positions.indexOf(p))).join('') + `</div>`;
+  });
+  // Positionen ohne bekannte Kategorie
+  const others = visible.filter(p=>!CATS.includes(p.category));
+  if(others.length){
+    html += `<div class="cat"><h3>Weitere</h3>` + others.map(p=>posCard(p, c.positions.indexOf(p))).join('') + `</div>`;
+  }
+  if(!visible.length) html += `<div class="empty" style="padding:14px">Keine aktiven Positionen. Füge unten eine hinzu oder blende eine ausgeblendete wieder ein.</div>`;
+  if(hidden.length){
+    html += `<div class="cat"><h3>Ausgeblendet</h3>` + hidden.map(p=>`
+      <div class="pos" style="opacity:.62">
+        <div class="poshead"><div class="nidx" style="background:var(--muted)">–</div><b style="flex:1 1 auto">${esc(p.label)}</b>
+        <button class="iconbtn" title="Wieder einblenden" data-action="pos-eye" data-id="${p.id}">↩</button>
+        <button class="iconbtn" title="Löschen" data-action="pos-del" data-id="${p.id}">🗑</button></div>
+      </div>`).join('') + `</div>`;
+  }
+  document.getElementById('posList').innerHTML = html;
 }
 
 /* ---------------- Update: Zahlen ---------------- */
@@ -832,7 +915,7 @@ function renderOffer(){
     <p style="color:var(--muted);font-size:.86rem">Vergleich der monatlichen Kosten für Kartenzahlung und Kassensystem – Annahmen: Umsatz mit Karte ${eur(k.rev)}/Monat, ${numFmt.format(k.tx)} Transaktionen, Ø Bon ${eur(k.rev && k.tx ? k.rev/k.tx : 0)}.</p>
 
     <table class="doctab">
-      <thead><tr><th>Position</th><th>Aktuell</th><th>Bei uns</th></tr></thead>
+      <thead><tr><th>Position</th><th>Heute zahlt der Kunde</th><th>Bei uns zahlt der Kunde</th></tr></thead>
       <tbody>
         ${rows}
         <tr class="tot"><td>Summe pro Monat</td><td class="num">${eur(k.cur)}</td><td class="num">${eur(k.own)}</td></tr>
@@ -907,6 +990,38 @@ document.addEventListener('click', (e)=>{
       c.positions = DEFAULT_POSITIONS(); save(); renderPositions(); updateNumbers();
       toast('Beispieldaten geladen'); break;
     }
+    case 'pos-add': {
+      const c = active(); if(!c) break;
+      const p = newPosition('Neue Position'); c.positions.push(p); save();
+      renderPositions();
+      const inp = document.querySelector(`.pos[data-posid="${p.id}"] .poslabel`);
+      if(inp){ inp.focus(); inp.select(); }
+      break;
+    }
+    case 'pos-add-abo': {
+      const c = active(); if(!c) break;
+      const p = newPosition('Abo / Monatsbetrag'); p.category='Software & Abo';
+      p.current.type='fixed'; p.current.a=''; p.ours.type='fixed'; p.ours.a='';
+      c.positions.push(p); save(); renderPositions(); updateNumbers(); toast('Abo-Position hinzugefügt'); break;
+    }
+    case 'pos-add-tx': {
+      const c = active(); if(!c) break;
+      const p = newPosition('Transaktionsgebühr'); p.category='Kartenzahlung';
+      p.current.type='percent_fixed'; p.current.a=''; p.current.b='';
+      p.ours.type='percent_fixed'; p.ours.a=''; p.ours.b='';
+      c.positions.push(p); save(); renderPositions(); updateNumbers(); toast('Transaktionsgebühr hinzugefügt'); break;
+    }
+    case 'pos-eye': {
+      const c = active(); if(!c) break;
+      const p = c.positions.find(x=>x.id===id); if(!p) break;
+      p.visible = p.visible===false ? true : false; save(); renderPositions(); updateNumbers(); break;
+    }
+    case 'pos-del': {
+      const c = active(); if(!c) break;
+      const p = c.positions.find(x=>x.id===id); if(!p) break;
+      if(!confirm('Position „'+p.label+'“ löschen?')) break;
+      c.positions = c.positions.filter(x=>x.id!==id); save(); renderPositions(); updateNumbers(); toast('Position gelöscht'); break;
+    }
     case 'print-offer': if(active()) window.print(); else toast('Kein Kunde aktiv'); break;
     case 'copy-offer':  copyOffer(); break;
     case 'share-offer': shareOffer(); break;
@@ -948,6 +1063,12 @@ document.addEventListener('input', (e)=>{
     p[side][key] = el.value; save();
     updateNumbers();
   }
+  // Positionsname direkt im Kopf umbenennen
+  if(el.dataset.edit==='label'){
+    const c = active(); if(!c) return;
+    const p = c.positions.find(x=>x.id===el.dataset.posid); if(!p) return;
+    p.label = el.value; save();
+  }
 });
 
 /* Gebührentyp eines Feldes wechseln → Zeile neu zeichnen */
@@ -961,6 +1082,10 @@ document.addEventListener('change', (e)=>{
     const p = c.positions.find(x=>x.id===el.dataset.pos); if(!p) return;
     p[el.dataset.side].type = el.value; save();
     renderPositions(); updateNumbers();
+  } else if(el.dataset.edit==='category'){
+    const c = active(); if(!c) return;
+    const p = c.positions.find(x=>x.id===el.dataset.posid); if(!p) return;
+    p.category = el.value; save(); renderPositions(); updateNumbers();
   } else if(el.dataset.scope){
     // Datums-/Select-Änderungen via input bereits abgedeckt, hier nur Formular-Datum
   }

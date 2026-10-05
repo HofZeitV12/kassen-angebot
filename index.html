@@ -114,6 +114,12 @@
   .badge.neg{background:var(--bad-weak);color:var(--bad)}
   .badge.neu{background:var(--brand-weak);color:var(--brand)}
 
+  /* Kundenliste: Zähler + Nachladen */
+  .count-chip{display:inline-flex;align-items:center;gap:6px;background:var(--brand-weak);color:var(--brand);border:1px solid #CDE0D7;border-radius:999px;padding:4px 10px;font-weight:700;font-size:.82rem;white-space:nowrap}
+  .count-chip i{font-style:normal;color:var(--muted);font-weight:600;font-size:.76rem}
+  .morebar{margin-top:10px}
+  .morebar .btn{width:100%}
+
   /* ---------- Comparison table ---------- */
   .pos{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;background:#fff;overflow:hidden}
   .pos > .poshead{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#F6F8F6;border-bottom:1px solid var(--line)}
@@ -261,11 +267,14 @@
   <!-- ============ KUNDEN ============ -->
   <section class="screen active" id="screen-customers">
     <div class="card">
-      <header><h2>Kunden</h2><span id="custCount" class="badge neu">0</span></header>
+      <header><h2>Kunden</h2><span class="count-chip" id="custCount">0 Kunden</span></header>
       <div class="searchwrap">
         <input type="search" id="custSearch" placeholder="Suchen: Restaurant, Name, Ort …" autocomplete="off" />
       </div>
       <div id="custList" class="clist"></div>
+      <div id="morebar" class="morebar" hidden>
+        <button class="btn ghost" data-action="cust-more">Weitere Kunden anzeigen</button>
+      </div>
       <div id="custEmpty" class="empty" hidden>
         <b>Noch keine Kunden</b>
         Tippe auf „Neuer Kunde“, um das erste Angebot anzulegen.
@@ -293,6 +302,12 @@
 
     <div class="card">
       <button class="btn block" data-action="cust-new">＋ Neuer Kunde</button>
+      <div class="sep"></div>
+      <p class="hint" style="margin:0 0 10px">Für Präsentation und Tests: füllt die Liste mit über 80 realistisch aussehenden Demo-Kunden.</p>
+      <div class="btnrow">
+        <button class="btn soft" data-action="demo-load">Demo-Kunden laden</button>
+        <button class="btn ghost" data-action="demo-clear">Nur Demo-Kunden entfernen</button>
+      </div>
     </div>
   </section>
 
@@ -645,6 +660,7 @@ function go(v){
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id==='screen-'+v));
   document.querySelectorAll('nav.tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.nav===v));
   window.scrollTo({top:0,behavior:'auto'});
+  if(v==='customers') custShown = Math.max(custShown, PAGE_SIZE);
   render();
 }
 function toast(msg){
@@ -656,10 +672,14 @@ function toast(msg){
 /* ---------------- Render: Kopf ---------------- */
 function renderHeader(){
   const a = active();
-  document.getElementById('custCount').textContent = store.customers.length;
+  const n = store.customers.length;
+  const el = document.getElementById('custCount');
+  el.innerHTML = `${n} Kunde${n===1?'':'n'} <i>${n>PAGE_SIZE?'· '+PAGE_SIZE+' sichtbar':''}</i>`;
 }
 
 /* ---------------- Render: Kunden ---------------- */
+let custShown = 0; // sichtbare Kunden (Nachladen)
+const PAGE_SIZE = 25;
 function renderCustomers(){
   const q = (document.getElementById('custSearch').value||'').trim().toLowerCase();
   const list = document.getElementById('custList');
@@ -668,11 +688,11 @@ function renderCustomers(){
     return [c.restaurant,c.contact,c.address,c.email,c.phone].join(' ').toLowerCase().includes(q);
   });
   document.getElementById('custEmpty').hidden = !(items.length===0 && store.customers.length===0);
-  list.innerHTML = items.map(c=>{
+  const visible = items.slice(0, q ? 400 : custShown);
+  list.innerHTML = visible.map(c=>{
     const k = calc(c);
     const isSave = k.saveY >= 0;
-    const badge = store.customers.length
-      ? `<span class="badge ${isSave?'':'neg'}">${isSave?'−':'+'} ${eur(Math.abs(k.saveY))}/Jahr</span>` : '';
+    const badge = `<span class="badge ${isSave?'':'neg'}">${isSave?'−':'+'} ${eur(Math.abs(k.saveY))}/Jahr</span>`;
     return `<div class="citem ${c.id===store.activeId?'is-active':''}" data-action="cust-open" data-id="${c.id}">
       <div class="info">
         <b>${esc(c.restaurant||'Unbenannter Kunde')}</b>
@@ -687,6 +707,13 @@ function renderCustomers(){
   }).join('');
   if(items.length===0 && store.customers.length>0){
     list.innerHTML = `<div class="empty"><b>Nichts gefunden</b>Kein Kunde passt zu „${esc(q)}“.</div>`;
+  }
+  // Nachladen
+  const bar = document.getElementById('morebar');
+  const rest = items.length - visible.length;
+  bar.hidden = q || rest <= 0;
+  if(!bar.hidden){
+    bar.querySelector('button').textContent = `Weitere ${Math.min(PAGE_SIZE,rest)} von ${rest} Kunden anzeigen`;
   }
 }
 function openCustForm(c){
@@ -967,11 +994,18 @@ document.addEventListener('click', (e)=>{
   const act = t.dataset.action, id = t.dataset.id;
   switch(act){
     case 'cust-new':   openCustForm(null); break;
+    case 'cust-more':  custShown += PAGE_SIZE; renderCustomers(); break;
     case 'cust-edit':  openCustForm(store.customers.find(x=>x.id===id)); break;
     case 'cust-del':   delCust(id); break;
     case 'cust-save':  saveCustForm(); break;
     case 'cust-cancel': document.getElementById('custFormCard').hidden = true; break;
     case 'cust-open':  setActive(id); go('situation'); break;
+    case 'demo-load':
+      if(confirm('Kundenliste mit über 80 realistischen Demo-Kunden für die Präsentation füllen?')){ loadDemoCustomers(); }
+      break;
+    case 'demo-clear':
+      clearDemoCustomers();
+      break;
     case 'go-customers': go('customers'); break;
     case 'go-compare': go('compare'); break;
     case 'go-offer':   go('offer'); break;
@@ -1141,6 +1175,132 @@ function handleImport(file){
     }catch(err){ toast('Datei ist kein gültiges Backup'); }
   };
   reader.readAsText(file);
+}
+
+/* ---------------- Demo-Daten für die Präsentation ---------------- */
+const DEMO_NAMES = [
+  ['Ristorante Bella Vista','Italienisch','Stuttgart'],['Trattoria da Vinci','Italienisch','Esslingen'],
+  ['Pizzeria Napoli','Italienisch','Ludwigsburg'],['La Piazza','Italienisch','Böblingen'],
+  ['Ristorante Toscana','Italienisch','Tübingen'],['Osteria Romana','Italienisch','Reutlingen'],
+  ['Ristorante Milano','Italienisch','Filderstadt'],['Casa Verde','Italienisch','Sindelfingen'],
+  ['Ristorante Amore','Italienisch','Göppingen'],['Vapiano City','Italienisch','Stuttgart'],
+  ['Asia Wok Haus','Asiatisch','Stuttgart'],['Sushi Matsuri','Asiatisch','Stuttgart'],
+  ['China Restaurant Panda','Asiatisch','Waiblingen'],['Viet Kitchen','Asiatisch','Ludwigsburg'],
+  ['Thai Orchidee','Asiatisch','Böblingen'],['Indien Palace','Asiatisch','Tübingen'],
+  ['Korean BBQ Seoul','Asiatisch','Reutlingen'],['Pho Saigon','Asiatisch','Esslingen'],
+  ['Wok & Roll','Asiatisch','Heilbronn'],['Bangkok Street Kitchen','Asiatisch','Stuttgart'],
+  ['Dönerhaus Anatolien','Imbiss','Stuttgart'],['Mr. Kebab','Imbiss','Esslingen'],
+  ['Grillhaus Adana','Imbiss','Ludwigsburg'],['Pommes Treff','Imbiss','Böblingen'],
+  ['Currywurst 36','Imbiss','Stuttgart'],['Bistro Am Markt','Bistro','Tübingen'],
+  ['Café Sonnenblume','Café','Reutlingen'],['Bäckerei Krustenbrot','Bäckerei','Leonberg'],
+  ['Konditorei Zuckerguss','Café','Filderstadt'],['Eismanufaktur Dolce','Eis','Stuttgart'],
+  ['Zum Alten Fritz','Deutsch','Stuttgart'],['Brauhaus Lindenhof','Deutsch','Göppingen'],
+  ['Gasthaus Sonne','Deutsch','Backnang'],['Krone Biergarten','Deutsch','Waiblingen'],
+  ['Wirtshaus Zur Traube','Deutsch','Schorndorf'],['Gasthof Rebstock','Deutsch','Heilbronn'],
+  ['Steakhaus Rumpsteak','Steakhouse','Stuttgart'],['Burger Factory','Burger','Stuttgart'],
+  ['Smash & Grill','Burger','Ludwigsburg'],['Roadhouse 66','Burger','Esslingen'],
+  ['Chicken Corner','Burger','Böblingen'],['Gyros Grill Olymp','Griechisch','Stuttgart'],
+  ['Taverna Athen','Griechisch','Tübingen'],['Santorini Kebab','Griechisch','Reutlingen'],
+  ['El Toro Tapas Bar','Spanisch','Stuttgart'],['Vaquero Tapas','Spanisch','Ludwigsburg'],
+  ['Casa Mexicana','Mexikanisch','Esslingen'],['Burrito Barrito','Mexikanisch','Stuttgart'],
+  ['Crêperie Bretagne','Französisch','Tübingen'],['Bistro Parisien','Französisch','Stuttgart'],
+  ['Sushi Yama','Asiatisch','Göppingen'],['Nudelbar Wok City','Asiatisch','Sindelfingen'],
+  ['Taco Loco','Mexikanisch','Böblingen'],['Ramen Ichiban','Asiatisch','Stuttgart'],
+  ['Falafel Garden','Imbiss','Tübingen'],['Veggie Green Bowl','Vegetarisch','Stuttgart'],
+  ['Waldhotel Panorama','Hotel & Restaurant','Freudenstadt'],['Seehotel Adler','Hotel & Restaurant','Konstanz'],
+  ['Hotel Sonnenhof','Hotel & Restaurant','Baden-Baden'],['Pension Rosenau','Hotel & Restaurant','Heidelberg'],
+  ['Bergrestaurant Alpenblick','Deutsch','Pforzheim'],['Braustube Hopfen','Deutsch','Ulm'],
+  ['Weinbar Rebenliebe','Bar','Stuttgart'],['Cocktailbar Lounge 7','Bar','Stuttgart'],
+  ['Kneipe Zum Fass','Bar','Esslingen'],['Sky Bar 21','Bar','Ludwigsburg'],
+  ['Shisha Lounge Orient','Bar','Stuttgart'],['Bowling & Diner Strike','Freizeit','Böblingen'],
+  ['Kino Snackbude','Freizeit','Tübingen'],['Fitness Café Vital','Café','Stuttgart'],
+  ['Bistro Campus','Bistro','Tübingen'],['Nudelhaus Pasta Fresca','Italienisch','Stuttgart'],
+  ['Pizza Express 24','Italienisch','Esslingen'],['Trattoria Nonna','Italienisch','Böblingen'],
+  ['Ristorante Venezia','Italienisch','Ludwigsburg'],['Osteria Del Sole','Italienisch','Göppingen'],
+  ['Bistro Am Schloss','Bistro','Stuttgart'],['Café Zeitlos','Café','Reutlingen'],
+  ['Imbiss König Kebab','Imbiss','Heilbronn'],['Wursthaus Metzgerei Braun','Imbiss','Backnang'],
+  ['Restaurant Delphi','Griechisch','Filderstadt'],['Sushi & Bowl','Asiatisch','Sindelfingen'],
+  ['Pizzeria Bella Napoli','Italienisch','Waiblingen'],['Gasthof Zur Linde','Deutsch','Schorndorf'],
+  ['Tapas Bar La Rumba','Spanisch','Stuttgart'],['Bistro Herzstück','Bistro','Stuttgart'],
+  ['Ristorante Da Franco','Italienisch','Leonberg'],['Bäckerei & Café Sonnenschein','Bäckerei','Tübingen'],
+  ['Sportgaststätte Adler','Deutsch','Esslingen'],['Restaurant Mediterran','Mediterran','Stuttgart'],
+  ['Baumhaus Café','Café','Karlsruhe'],['Hafenkneipe Nordlicht','Bar','Friedrichshafen']
+];
+const DEMO_FIRST = ['Max','Anna','Thomas','Sarah','Michael','Julia','Andreas','Nina','Stefan','Laura','Daniel','Melanie','Kevin','Sabine','Marco','Christina','Florian','Petra','Tobias','Sandra','Murat','Aylin','Ahmed','Fatma','Emre','Leila','Hakan','Zeynep','Luca','Giulia','Antonio','Maria','Giuseppe','Elena','Matteo','Sofia'];
+const DEMO_LAST  = ['Mustermann','Müller','Schneider','Fischer','Weber','Meyer','Wagner','Becker','Hoffmann','Schäfer','Koch','Bauer','Richter','Klein','Wolf','Schröder','Neumann','Braun','Krüger','Hofmann','Yilmaz','Kaya','Demir','Celik','Rossi','Ferrari','Bianchi','Romano','Ricci','Marino','Conti','Greco','Bruno','Esposito'];
+const DEMO_AREAS = ['0711','07141','07022','07031','0711','07042','07121','07131','07051','0711'];
+const DEMO_STREETS = ['Hauptstraße','Bahnhofstraße','Marktplatz','Lindenstraße','Schillerstraße','Goethestraße','Gartenstraße','Kirchstraße','Rosenstraße','Wilhelmstraße','Friedrichstraße','Karlstraße','Mozartstraße','Amselweg','Ringstraße'];
+const DEMO_CASH = ['ready2order','SumUp Kassensystem','Vectron','Gastrofix','orderbird','Lightspeed','Zettle','Luca','Nexon','Gastronovi','EC-System'];
+const DEMO_PROV = ['SumUp','Zettle (PayPal)','CCV','Nexi','Concardis','Payone','Bluecode'];
+const DEMO_LOC = {
+  'Italienisch':[['280','0,66','1,4','0,24','59'],['340','0,4','0,4','0,1','45']],
+  '_default':   [['220','0,72','1,6','0,28','49'],['280','0,42','0,5','0,12','39']]
+};
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function demoFee(arr){ return {type:'percent_fixed', a:arr[0], b:arr[1]}; }
+function makeDemoCustomer(i){
+  const [name, branch, city] = DEMO_NAMES[i % DEMO_NAMES.length];
+  const c = newCustomer();
+  const first = pick(DEMO_FIRST), last = pick(DEMO_LAST);
+  const key = name.toLowerCase().replace(/[^a-z0-9äöüß]/g,'');
+  const area = pick(DEMO_AREAS);
+  const street = pick(DEMO_STREETS);
+  const rRev = [18000,22000,25000,28000,32000,38000,45000,52000,60000][Math.floor(Math.random()*9)];
+  const rTx  = Math.max(400, Math.round(rRev/ (18+Math.random()*14)));
+  const fees = DEMO_LOC[branch] || DEMO_LOC._default;
+  const [cur, own] = fees;
+  c.restaurant = name;
+  c.contact = first+' '+last;
+  c.phone = area+' '+Math.floor(1000000+Math.random()*8999999);
+  c.email = 'info@'+key+'.de';
+  c.address = street+' '+Math.floor(1+Math.random()*120)+', '+Math.floor(70000+Math.random()*9000)+' '+city;
+  c.situation.cashName = pick(DEMO_CASH);
+  c.situation.cashModel = pick(['Pad','Terminal Pro','TSE Box','Touchscreen','Solo']);
+  c.situation.provider = pick(DEMO_PROV);
+  c.situation.terminal = pick(['Kartenleser Solo','Terminal Pro 2','SumUp Solo','Zettle Reader 2']);
+  c.situation.term = pick(['24 Monate','36 Monate','12 Monate','bis 12/2026']);
+  c.situation.notes = 'Kündigungsfrist 3 Monate. Wünscht Online-Bestellung und moderne Kassenlösung.';
+  c.assumptions.revenue = String(rRev);
+  c.assumptions.transactions = String(rTx);
+  c.assumptions.avgBon = (rRev/rTx).toFixed(2).replace('.',',');
+  c.positions = DEFAULT_POSITIONS();
+  const by = id => c.positions.find(p=>p.id===id);
+  by('ec').current    = demoFee(cur);
+  by('ec').ours       = demoFee(own);
+  by('online').current = {type:'percent_fixed', a:cur[2], b:cur[3]};
+  by('online').ours    = {type:'percent_fixed', a:own[2], b:own[3]};
+  by('web').current.a  = cur[0]; by('web').ours.a = own[0];
+  by('kasse').current.a = cur[4]; by('kasse').ours.a = own[4];
+  by('service').current = {type:'fixed', a:'0', b:''};
+  by('service').ours    = {type:'fixed', a:'0', b:''};
+  c.oneTime.hardware = String(pick([0,290,490,690,890]));
+  c.oneTime.setup = String(pick([0,99,149,199,249]));
+  return c;
+}
+function loadDemoCustomers(){
+  const keepActive = store.activeId;
+  const existingNames = new Set(store.customers.map(c=>c.restaurant));
+  const start = store.customers.length;
+  const total = 86;
+  for(let i=0;i<total;i++){
+    const c = makeDemoCustomer(i);
+    // Namen eindeutig halten
+    if(existingNames.has(c.restaurant)) c.restaurant = c.restaurant+' '+(i+1);
+    existingNames.add(c.restaurant);
+    store.customers.push(c);
+  }
+  if(!keepActive) store.activeId = store.customers[0]?.id || null;
+  custShown = PAGE_SIZE;
+  save(); render(); toast(total+' Demo-Kunden hinzugefügt');
+}
+function clearDemoCustomers(){
+  const before = store.customers.length;
+  const keep = store.customers.filter(c => !DEMO_NAMES.some(n => n[0]===c.restaurant));
+  store.customers = keep;
+  if(!store.customers.find(c=>c.id===store.activeId)) store.activeId = store.customers[0]?.id || null;
+  custShown = PAGE_SIZE;
+  save(); render();
+  toast((before-keep.length)+' Demo-Kunden entfernt, '+keep.length+' behalten');
 }
 
 /* ---------------- Angebot kopieren / teilen ---------------- */

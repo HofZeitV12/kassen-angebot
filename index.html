@@ -357,12 +357,6 @@
 
     <div class="card">
       <button class="btn block" data-action="cust-new">＋ Neuer Kunde</button>
-      <div class="sep"></div>
-      <p class="hint" style="margin:0 0 10px">Für Präsentation und Tests: füllt die Liste mit über 80 realistisch aussehenden Demo-Kunden.</p>
-      <div class="btnrow">
-        <button class="btn soft" data-action="demo-load">Demo-Kunden laden</button>
-        <button class="btn ghost" data-action="demo-clear">Nur Demo-Kunden entfernen</button>
-      </div>
     </div>
   </section>
 
@@ -1055,12 +1049,6 @@ document.addEventListener('click', (e)=>{
     case 'cust-save':  saveCustForm(); break;
     case 'cust-cancel': document.getElementById('custFormCard').hidden = true; break;
     case 'cust-open':  setActive(id); go('situation'); break;
-    case 'demo-load':
-      if(confirm('Kundenliste mit über 80 realistischen Demo-Kunden für die Präsentation füllen?')){ loadDemoCustomers(); }
-      break;
-    case 'demo-clear':
-      clearDemoCustomers();
-      break;
     case 'go-customers': go('customers'); break;
     case 'go-compare': go('compare'); break;
     case 'go-offer':   go('offer'); break;
@@ -1332,30 +1320,17 @@ function makeDemoCustomer(i){
   c.oneTime.setup = String(pick([0,99,149,199,249]));
   return c;
 }
-function loadDemoCustomers(){
-  const keepActive = store.activeId;
+function seedDemoCustomers(){
+  const target = 90;
   const existingNames = new Set(store.customers.map(c=>c.restaurant));
-  const start = store.customers.length;
-  const total = 86;
-  for(let i=0;i<total;i++){
-    const c = makeDemoCustomer(i);
-    // Namen eindeutig halten
-    if(existingNames.has(c.restaurant)) c.restaurant = c.restaurant+' '+(i+1);
+  const missing = Math.max(0, target - store.customers.length);
+  for(let i=0;i<missing;i++){
+    const c = makeDemoCustomer(store.customers.length);
+    if(existingNames.has(c.restaurant)) c.restaurant = c.restaurant+' '+(i+2);
     existingNames.add(c.restaurant);
     store.customers.push(c);
   }
-  if(!keepActive) store.activeId = store.customers[0]?.id || null;
-  custShown = PAGE_SIZE;
-  save(); render(); toast(total+' Demo-Kunden hinzugefügt');
-}
-function clearDemoCustomers(){
-  const before = store.customers.length;
-  const keep = store.customers.filter(c => !DEMO_NAMES.some(n => n[0]===c.restaurant));
-  store.customers = keep;
-  if(!store.customers.find(c=>c.id===store.activeId)) store.activeId = store.customers[0]?.id || null;
-  custShown = PAGE_SIZE;
-  save(); render();
-  toast((before-keep.length)+' Demo-Kunden entfernt, '+keep.length+' behalten');
+  if(!store.activeId && store.customers[0]) store.activeId = store.customers[0].id;
 }
 
 /* ---------------- Angebot kopieren / teilen ---------------- */
@@ -1405,30 +1380,19 @@ async function shareOffer(){
 // Suchfeld-Reset bei leerem Store
 (function init(){
   store.customers.forEach(ensureShape);
-  if(!store.customers.length){
-    // Ersten Beispielkunden anlegen, damit man sofort testen kann
-    const demo = newCustomer();
-    demo.restaurant = 'Beispiel: Ristorante Bella Vista';
-    demo.contact = 'Max Mustermann';
-    demo.phone = '0151 2345678';
-    demo.email = 'info@bella-vista.de';
-    demo.address = 'Hauptstraße 12, 70173 Stuttgart';
-    demo.situation.cashName = 'ready2order';
-    demo.situation.cashModel = 'R2O Pad';
-    demo.situation.provider = 'SumUp';
-    demo.situation.terminal = 'Kartenleser Solo';
-    demo.situation.term = '24 Monate';
-    demo.situation.notes = 'Kündigungsfrist 3 Monate zum Vertragsende. Wünscht Online-Bestellung und Tischreservierung.';
-    store.customers.push(demo);
-    store.activeId = demo.id;
-    save();
+  // Kundenliste für die Kunden-Ansicht bereitstellen
+  seedDemoCustomers();
+  // Aktiven Kunden sicherstellen; falls keiner aktiv ist, den ersten öffnen
+  if(store.customers.length && !store.customers.find(c=>c.id===store.activeId)){
+    store.activeId = store.customers[0].id;
   }
+  custShown = PAGE_SIZE;
   // Firmen-Beispielwerte beim ersten Start
   if(!store.company.name){
     store.company.name = 'Mein Unternehmen';
     store.company.contact = 'Ihr Name';
-    save();
   }
+  save();
   render();
 })();
 </script>

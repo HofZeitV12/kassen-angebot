@@ -253,7 +253,6 @@
         <span>Kartenzahlung &amp; Kassensysteme</span>
       </div>
     </div>
-    <button class="active-pill" id="activePill" data-action="go-customers">Kein Kunde</button>
   </div>
 </header>
 
@@ -657,8 +656,6 @@ function toast(msg){
 /* ---------------- Render: Kopf ---------------- */
 function renderHeader(){
   const a = active();
-  const pill = document.getElementById('activePill');
-  pill.textContent = a ? (a.restaurant || 'Unbenannter Kunde') : 'Kein Kunde';
   document.getElementById('custCount').textContent = store.customers.length;
 }
 

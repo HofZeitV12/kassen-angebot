@@ -160,10 +160,6 @@
   .cell.own .cellhead{color:var(--good)}
   .cellnote{font-size:.72rem;color:var(--muted);margin-top:-2px}
   .pos .costline{padding-top:7px}
-  @media(max-width:560px){
-    .sides{grid-template-columns:1fr}
-    .sides > .cell{border-right:0}
-  }
 
   /* ---------- Summary ---------- */
   .sumgrid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
@@ -246,6 +242,65 @@
     #screen-offer{display:block !important}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+
+  /* ---------- Handy (schmale Screens) ---------- */
+  @media (max-width:600px){
+    main{padding:10px}
+    .card{padding:12px;border-radius:12px}
+    .grid.c2,.grid.c3{gap:8px}
+    h1{font-size:1.05rem}
+    h2{font-size:1rem}
+    .brandmark .txt span{font-size:.68rem}
+
+    /* Kundenliste kompakter */
+    .citem{padding:11px}
+    .citem b{font-size:.98rem}
+
+    /* Vergleich: Heute/Bei uns bleiben NEBENeinander, nur kompakter */
+    .sides > .cell{padding:8px}
+    .cellhead{font-size:.68rem;letter-spacing:.03em}
+    .sides .cell select[data-role="type"]{font-size:.8rem;padding:8px;min-height:40px}
+    .fees{grid-template-columns:1fr;gap:6px}
+    .fees input{padding:10px;min-height:44px;font-size:1rem}
+    .cellnote{font-size:.68rem}
+    .costline b{font-size:.95rem}
+    .poshead{flex-wrap:wrap;padding:8px 10px}
+    .poslabel{font-size:.86rem;min-height:36px}
+    .poscat{font-size:.68rem}
+    .pos-acts{flex-direction:row}
+    .pos-acts .iconbtn{width:32px;height:32px}
+
+    /* Positionen, Ergebnis, Einmalkosten: 2 Spalten beibehalten */
+    .sumgrid{gap:8px}
+    .sumgrid .s{padding:9px}
+    .sumgrid .s b{font-size:1.02rem}
+    .hero-save b{font-size:1.7rem}
+
+    /* Formularfelder groß genug, aber kompakter */
+    .field{margin-bottom:8px}
+
+    /* Angebots-Dokument */
+    .doc{padding:12px}
+    .doc .dochead{flex-direction:column;gap:10px}
+    .doc .meta{text-align:left}
+    .doc h2.doctitle{font-size:1.2rem}
+    table.doctab{font-size:.8rem}
+    table.doctab th,table.doctab td{padding:6px 4px}
+
+    /* Navigation */
+    nav.tabbar button{font-size:.64rem}
+    nav.tabbar button svg{width:21px;height:21px}
+  }
+
+  /* Sehr schmale Handys */
+  @media (max-width:380px){
+    .cellhead{font-size:.62rem}
+    .sides .cell select[data-role="type"]{font-size:.74rem;padding:7px}
+    .fees input{padding:8px;font-size:.95rem}
+    .cellnote{font-size:.62rem}
+    .doc{padding:10px}
+    table.doctab{font-size:.74rem}
+  }
 </style>
 </head>
 <body>
